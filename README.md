@@ -395,6 +395,27 @@ bash run.sh app.apk --mode ark --dump-dir ./dumped --no-install --no-launch
 bash run.sh app.apk -o ./out
 ```
 
+### Fully static unpacking (no device, no root)
+
+Most routes run entirely on the machine/phone without touching a device:
+
+| Protection | Static? | Notes |
+| --- | --- | --- |
+| DPT (dex-shell) | ✅ | payload restore + key recovery, offline |
+| LSParanoid | ✅ | smali-level deobfuscation via local apktool |
+| Fake-360 decoy / marker-only shell | ✅ | embedded `origin.apk` is extracted, or the readable copy is delivered (`FAKE SHELL ONLY`) |
+| SignatureKiller re-pack | ✅ | embedded `origin.apk` extracted + recursed |
+| PairipProtect translation | ✅ | offline from a captured `pairip.json` |
+| Real 360 / ArkShell (offline mode) | 🔜 | encrypted payload lives in `libjiagu.so` → static decryptor planned |
+| Real 360 / ArkShell (OTA/online) | ❌ | payload only exists at runtime; requires device/root |
+
+Run everything with one command:
+
+```bash
+bash run.sh app.apk           # auto-all: profile -> extract -> pick the best static route
+bash run.sh app.apk --analyze # explain what it will do
+```
+
 ### Unpack 360 / Ark on a non-rooted phone (Shizuku)
 
 Shizuku runs the server as the **adb (shell)** user, which is enough for Ark

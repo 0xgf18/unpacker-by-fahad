@@ -311,12 +311,7 @@ private fun runAutoAll(apk: File, outDir: File, debug: Boolean, opts: ArkOptions
         println(uiRow("${ANSI_BOLD_YELLOW}DECOY-ONLY SIGNATURE${ANSI_RESET}"))
         println(uiRow(" ${embedded.name} without any embedded apk"))
         if (!hasRealArkShell(apk)) {
-            println(uiRow(" ${ANSI_GREEN}FAKE SHELL ONLY${ANSI_RESET} - no real 360 native shell,"))
-            println(uiRow(" no embedded payload -> no runtime encryption to undo statically"))
-            println(uiBot())
-            val finalCopy = File(outDir, apk.name.removeSuffix(".apk") + "-unpacked.apk")
-            apk.copyTo(finalCopy, overwrite = true)
-            println("   clean copy delivered: ${finalCopy.absolutePath}")
+            staticFakeShell(apk, outDir)
             return
         }
         println(uiRow(" -> falling through to owned-pipeline routes"))
@@ -341,7 +336,10 @@ private fun runAutoAll(apk: File, outDir: File, debug: Boolean, opts: ArkOptions
                     buildKeyOverride = null, buildKeysFile = null, hexToBytes = ::hexToBytes
                 )
                 "lsparanoid" -> runLspPipeline(apk, outDir, debug)
-                "ark" -> runArkPipeline(apk, outDir, debug, opts)
+                "ark" -> {
+                    if (fakeArkRoute(apk, outDir)) return
+                    runArkPipeline(apk, outDir, debug, opts)
+                }
                 else -> throw IllegalStateException("classic fallback produced '${classic}'")
             }
             profile.layers.first().let { top ->
@@ -366,7 +364,10 @@ private fun runAutoAll(apk: File, outDir: File, debug: Boolean, opts: ArkOptions
             buildKeyOverride = null, buildKeysFile = null, hexToBytes = ::hexToBytes
         )
         "lsparanoid" -> runLspPipeline(apk, outDir, debug)
-        "ark" -> runArkPipeline(apk, outDir, debug, opts)
+        "ark" -> {
+            if (fakeArkRoute(apk, outDir)) return
+            runArkPipeline(apk, outDir, debug, opts)
+        }
         "pairip" -> runPairip(apk, outDir, debug)
         else -> throw IllegalStateException("unsupported auto strategy: ${layer.strategy}")
     }
@@ -380,6 +381,29 @@ private fun findEmbeddedApkEntry(apk: File, hint: String?): String? {
         names.firstOrNull { it.endsWith("origin.apk") }?.let { return it }
         return names.firstOrNull { it.startsWith("assets/") && it.endsWith(".apk") }
     }
+}
+
+/**
+ * A marker-only fake shell (no real libjiagu.so, no embedded origin.apk) has no
+ * runtime payload to decrypt - deliver the clean readable copy and stop.
+ */
+private fun staticFakeShell(apk: File, outDir: File) {
+    println()
+    println(uiTop())
+    println(uiRow("${ANSI_BOLD_YELLOW}DECOY-ONLY SIGNATURE${ANSI_RESET}"))
+    println(uiRow(" ${ANSI_GREEN}FAKE SHELL ONLY${ANSI_RESET} - no real 360 native shell,"))
+    println(uiRow(" no embedded payload -> no runtime encryption to undo statically"))
+    println(uiBot())
+    val finalCopy = File(outDir, apk.name.removeSuffix(".apk") + "-unpacked.apk")
+    apk.copyTo(finalCopy, overwrite = true)
+    println("   clean copy delivered: ${finalCopy.absolutePath}")
+}
+
+/** True when a layer route is ark but the apk has no real jiagu shell - treat as static fake. */
+private fun fakeArkRoute(apk: File, outDir: File): Boolean {
+    if (hasRealArkShell(apk)) return false
+    staticFakeShell(apk, outDir)
+    return true
 }
 
 /**

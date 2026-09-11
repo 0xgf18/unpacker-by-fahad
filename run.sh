@@ -14,17 +14,25 @@ if [ -z "$DPT_APKTOOL_JAR" ]; then
   done
 fi
 
-if [ ! -d build/install/fahad-unpacker ]; then
+# use the prebuilt jars (zip bundle) before attempting a build (source clone)
+DIST_LIB="build/install/fahad-unpacker/lib"
+LIBDIR=""
+if [ -d "$DIST_LIB" ]; then
+  LIBDIR="$DIST_LIB"
+elif [ -d "lib" ]; then
+  LIBDIR="lib"
+else
   echo "[run.sh] no build found -> building"
   if command -v gradle >/dev/null 2>&1; then
     gradle --no-daemon installDist
   else
     ./gradlew --no-daemon installDist
   fi
+  LIBDIR="$DIST_LIB"
 fi
 
 CP=""
-for j in build/install/fahad-unpacker/lib/*.jar; do
+for j in "$LIBDIR"/*.jar; do
   CP="$CP:$j"
 done
 

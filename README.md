@@ -430,6 +430,17 @@ that ships as an external tool (KeyDive / blutter / ...). See the
 
 ---
 
+## License
+
+Copyright © 2026 Fahad (0xgf18). **All rights reserved.**
+
+This project is the exclusive property of the author. Viewing for personal and
+educational purposes is allowed, but copying, modifying, redistributing or
+commercial use **requires the author's explicit written permission**. See the
+[LICENSE](LICENSE) file for full terms.
+
+---
+
 ## Disclaimer
 
 For **security research and educational purposes only**. Only unpack APKs you

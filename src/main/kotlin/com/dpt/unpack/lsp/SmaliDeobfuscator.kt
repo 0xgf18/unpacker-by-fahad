@@ -480,7 +480,7 @@ object SmaliDeobfuscator {
             val runtime = File(File(d, "org"), "lsposed/lsparanoid")
             if (runtime.isDirectory) {
                 runtime.deleteRecursively()
-                println("  removed ${runtime.path}")
+                println("  removed .../smali/org/lsposed/lsparanoid")
             }
         }
         val files = allFiles.filter { it.isFile }
@@ -545,7 +545,7 @@ object SmaliDeobfuscator {
                 i += 1
             }
             p.writeText(out.joinToString("\n") + "\n")
-            println("  cleaned ${p.path}")
+            println("  cleaned .../smali/${relSmali(p)}")
         }
 
         // 3) strip dead decoy call sites like `invoke-static {..}, L<chunkcls>;->a(J)V`
@@ -559,9 +559,14 @@ object SmaliDeobfuscator {
             }
             if (kept.size != lines.size) {
                 p.writeText(kept.joinToString("\n") + "\n")
-                println("  stripped decoy calls in ${p.path}")
+                println("  stripped decoy calls in .../smali/${relSmali(p)}")
             }
         }
+    }
+
+    private fun relSmali(p: File): String {
+        val idx = p.path.lastIndexOf("smali" + File.separator)
+        return if (idx >= 0) p.path.substring(idx + 6) else p.name
     }
 
     private fun isCiphertext(units: List<Int>): Boolean {

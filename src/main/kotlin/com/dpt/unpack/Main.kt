@@ -34,6 +34,13 @@ data class CandidateScore(
 // Mobile-friendly width
 private const val UI_W = 42
 
+/** Last-two-segments shorthand so phone screens don't wrap on absolute paths. */
+private fun shortPath(f: File): String {
+    val name = f.name
+    val parent = f.parentFile?.name
+    return if (parent.isNullOrBlank()) name else "$parent/$name"
+}
+
 // ANSI Colors for Clean UI
 private const val ANSI_GREEN = "\u001B[32m"
 private const val ANSI_BOLD_GREEN = "\u001B[1;32m"
@@ -301,7 +308,7 @@ private fun runAutoAll(apk: File, outDir: File, debug: Boolean, opts: ArkOptions
                     ?: throw IllegalStateException("embedded entry vanished during read: $embeddedEntry")
                 z.getInputStream(entry).use { i -> origin.outputStream().use { o -> i.copyTo(o) } }
             }
-            println("   extracted ${fmtSize(origin.length())} -> ${origin.absolutePath}")
+            println("   extracted ${fmtSize(origin.length())} -> ${shortPath(origin)}")
             println("   -> recursing into the embedded origin.apk")
             runAutoAll(origin, innerDir, debug, opts, depth + 1)
             return
@@ -733,7 +740,7 @@ private fun runLspPipeline(
 
     // Stage 4 - resolve getString calls + cleanup
     val t4 = System.currentTimeMillis()
-    val summary = runWithSpinner(4, "Resolving getString calls", 6) {
+    val summary = runQuiet(4, "Resolving getString calls", 6) {
         SmaliDeobfuscator.run(work, cleanup = true)
     }
     println()
@@ -1057,6 +1064,12 @@ private fun wrapText(s: String, width: Int): List<String> {
 
 private fun stageHead(n: Int, title: String) {
     println("\n ${ANSI_BOLD_GREEN}[$n/5] $title${ANSI_RESET}")
+}
+
+private fun <T> runQuiet(n: Int, title: String, total: Int = 5, block: () -> T): T {
+    println()
+    println("  [$n/$total] $title...")
+    return block()
 }
 
 private fun <T> runWithSpinner(n: Int, title: String, total: Int = 5, block: () -> T): T {

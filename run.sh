@@ -14,7 +14,7 @@ if [ -z "$DPT_APKTOOL_JAR" ]; then
   done
 fi
 
-if [ ! -d build/install/dpt-unpacker ]; then
+if [ ! -d build/install/fahad-unpacker ]; then
   echo "[run.sh] no build found -> building"
   if command -v gradle >/dev/null 2>&1; then
     gradle --no-daemon installDist
@@ -24,7 +24,7 @@ if [ ! -d build/install/dpt-unpacker ]; then
 fi
 
 CP=""
-for j in build/install/dpt-unpacker/lib/*.jar; do
+for j in build/install/fahad-unpacker/lib/*.jar; do
   CP="$CP:$j"
 done
 

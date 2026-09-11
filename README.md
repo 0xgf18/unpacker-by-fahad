@@ -161,8 +161,8 @@ Aliases: `auto-all`, `oneshot`, `full`, `single`, or menu choice `5`.
 ```bash
 pkg install openjdk-17 unzip
 termux-setup-storage            # allow /sdcard access
-unzip dpt-termux.zip            # extract the bundle
-cd dpt-unpacker
+unzip fahad-unpacker-termux.zip    # extract the bundle
+cd fahad-unpacker
 bash run.sh app.apk             # fully automatic
 ```
 
@@ -176,7 +176,7 @@ runtime (`lib/*.jar`) and `tools/RePairip.jar`.
 
 ```bash
 ./gradlew --no-daemon installDist      # or: gradle --no-daemon installDist
-java -Xmx1g -cp "build/install/dpt-unpacker/lib/*" com.dpt.unpack.MainKt app.apk
+java -Xmx1g -cp "build/install/fahad-unpacker/lib/*" com.dpt.unpack.MainKt app.apk
 ```
 
 Requires a Kotlin/JVM toolchain; `build.gradle.kts` targets Kotlin 2.1.20,
@@ -333,7 +333,7 @@ cwd, repo-root walk, bare `RePairip.jar`):
 ## Project layout
 
 ```
-DPT-UNPACKER/
+fahad-unpacker/
 ├── run.sh                    # Termux launcher: builds + one-shot auto mode
 ├── build.gradle.kts          # Kotlin 2.1.20 / JVM 11
 ├── src/main/kotlin/com/dpt/unpack/

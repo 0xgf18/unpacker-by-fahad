@@ -424,7 +424,7 @@ private fun hexToBytes(hex: String): ByteArray? {
 private fun printUsage() {
     println("${ANSI_BOLD_GREEN}UNPACKER BY FAHAD${ANSI_RESET}")
     println(" github: https://github.com/0xgf18")
-    println(" usage: dpt-unpacker <input.apk> [options]")
+    println(" usage: fahad-unpacker <input.apk> [options]")
     println("")
     println(" options:")
     println("   -i, --input <apk>       input apk (or first positional arg)")

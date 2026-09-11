@@ -641,26 +641,8 @@ private fun runDptPipeline(
         if (realApp != null) println("\n   application-name = $realApp".replace('/', '.'))
         val unsigned = File(outDir, "unsigned.apk")
         com.dpt.unpack.rebuild.ApkRebuilder.rebuild(apk, patchedDir, rootManifest, unsigned)
-        val buildTools = com.dpt.unpack.rebuild.Signer.findBuildTools()
-        val finalApk = File(outDir, apk.name.removeSuffix(".apk") + "-unpacked.apk")
-        val signer = buildTools
-            ?: com.dpt.unpack.rebuild.Signer.findPathBinary("apksigner")
-        if (signer != null) {
-            val zipalign = buildTools?.let { null } ?: com.dpt.unpack.rebuild.Signer.findPathBinary("zipalign")
-            val aligned = File(outDir, "aligned.apk")
-            if (buildTools != null) {
-                com.dpt.unpack.rebuild.Signer.align(buildTools, unsigned, aligned)
-                com.dpt.unpack.rebuild.Signer.sign(buildTools, com.dpt.unpack.rebuild.Signer.ensureKeystore(outDir), aligned)
-            } else {
-                com.dpt.unpack.rebuild.Signer.alignWithPathBinary(zipalign, unsigned, aligned)
-                com.dpt.unpack.rebuild.Signer.signWithPathBinary(signer, com.dpt.unpack.rebuild.Signer.ensureKeystore(outDir), aligned)
-            }
-            if (finalApk.exists()) finalApk.delete()
-            aligned.renameTo(finalApk)
-        } else {
-            unsigned.renameTo(finalApk)
-            println("\n   (no apksigner found - output is UNSIGNED)")
-        }
+        val finalName = apk.name.removeSuffix(".apk") + "-unpacked.apk"
+        signAndDeliver(unsigned, finalName, outDir)
     }
     stageDone(System.currentTimeMillis() - t4)
 
@@ -674,6 +656,40 @@ private fun runDptPipeline(
     val removed = tidyOutdir(outDir, setOf(finalName))
     if (removed > 0) println("   ${ANSI_GREEN}✓ cleaned $removed intermediate files${ANSI_RESET}")
     resultCard(finalName, outDir, sha, finalApk.length(), System.currentTimeMillis() - start)
+}
+
+/**
+ * Best-effort signing: sign+align when a signer exists, otherwise or on any
+ * signer failure deliver the rebuilt apk as-is (unsigned). Termux without the
+ * apksigner package or a misbehaving signer must never block delivery.
+ */
+private fun signAndDeliver(rebuilt: File, finalName: String, outDir: File) {
+    val finalApk = File(outDir, finalName)
+    if (finalApk.exists()) finalApk.delete()
+    try {
+        val buildTools = com.dpt.unpack.rebuild.Signer.findBuildTools()
+        val aligned = File(outDir, "aligned.apk")
+        if (buildTools != null) {
+            com.dpt.unpack.rebuild.Signer.align(buildTools, rebuilt, aligned)
+            com.dpt.unpack.rebuild.Signer.sign(buildTools, com.dpt.unpack.rebuild.Signer.ensureKeystore(outDir), aligned)
+            aligned.renameTo(finalApk)
+        } else {
+            val signer = com.dpt.unpack.rebuild.Signer.findPathBinary("apksigner")
+            if (signer != null) {
+                com.dpt.unpack.rebuild.Signer.alignWithPathBinary(
+                    com.dpt.unpack.rebuild.Signer.findPathBinary("zipalign"), rebuilt, aligned
+                )
+                com.dpt.unpack.rebuild.Signer.signWithPathBinary(signer, com.dpt.unpack.rebuild.Signer.ensureKeystore(outDir), aligned)
+                aligned.renameTo(finalApk)
+            } else {
+                rebuilt.copyTo(finalApk, overwrite = true)
+                println("\n   (no apksigner found - output is UNSIGNED)")
+            }
+        }
+    } catch (e: Exception) {
+        rebuilt.copyTo(finalApk, overwrite = true)
+        println("\n   (signing skipped: ${e.message?.lineSequence()?.firstOrNull()}) - output is UNSIGNED")
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -730,23 +746,10 @@ private fun runLspPipeline(
     }
     stageDone(System.currentTimeMillis() - t5)
 
-    // Stage 6 - sign
+    // Stage 6 - sign (best-effort)
     val t6 = System.currentTimeMillis()
     runWithSpinner(6, "Signing", 6) {
-        val buildTools = com.dpt.unpack.rebuild.Signer.findBuildTools()
-        val finalApk = File(outDir, apk.name.removeSuffix(".apk") + "-unpacked.apk")
-        if (buildTools != null) {
-            val aligned = File(outDir, "aligned.apk")
-            com.dpt.unpack.rebuild.Signer.align(buildTools, rebuilt, aligned)
-            com.dpt.unpack.rebuild.Signer.sign(buildTools, com.dpt.unpack.rebuild.Signer.ensureKeystore(outDir), aligned)
-            if (finalApk.exists()) finalApk.delete()
-            aligned.renameTo(finalApk)
-        } else {
-            val base = File(outDir, apk.name.removeSuffix(".apk") + "-unsigned.apk")
-            rebuilt.copyTo(base, overwrite = true)
-            base.renameTo(File(outDir, apk.name.removeSuffix(".apk") + "-unpacked.apk"))
-            println("   (no Android build-tools found - unsigned apk in outDir)")
-        }
+        signAndDeliver(rebuilt, apk.name.removeSuffix(".apk") + "-unpacked.apk", outDir)
     }
     stageDone(System.currentTimeMillis() - t6)
 
@@ -868,27 +871,7 @@ private fun runArkPipeline(apk: File, outDir: File, debug: Boolean, opts: ArkOpt
         val patchedManifest = com.dpt.unpack.axml.AxmlManifest.setApplicationName(manifestBytes, realApp)
         val unsigned = File(outDir, "unsigned.apk")
         ArkRebuilder.rebuild(apk, File(outDir, "patched_dex"), patchedManifest, unsigned)
-        val keystore = com.dpt.unpack.rebuild.Signer.ensureKeystore(outDir)
-        val finalApk = File(outDir, apk.name.removeSuffix(".apk") + "-unpacked.apk")
-        val buildTools = com.dpt.unpack.rebuild.Signer.findBuildTools()
-        val signer = buildTools
-            ?: com.dpt.unpack.rebuild.Signer.findPathBinary("apksigner")
-        if (signer != null) {
-            val zipalign = buildTools?.let { null } ?: com.dpt.unpack.rebuild.Signer.findPathBinary("zipalign")
-            val aligned = File(outDir, "aligned.apk")
-            if (buildTools != null) {
-                com.dpt.unpack.rebuild.Signer.align(buildTools, unsigned, aligned)
-                com.dpt.unpack.rebuild.Signer.sign(buildTools, keystore, aligned)
-            } else {
-                com.dpt.unpack.rebuild.Signer.alignWithPathBinary(zipalign, unsigned, aligned)
-                com.dpt.unpack.rebuild.Signer.signWithPathBinary(signer, keystore, aligned)
-            }
-            if (finalApk.exists()) finalApk.delete()
-            aligned.renameTo(finalApk)
-        } else {
-            unsigned.copyTo(finalApk, overwrite = true)
-            println("\n   (no apksigner found - output is UNSIGNED)")
-        }
+        signAndDeliver(unsigned, apk.name.removeSuffix(".apk") + "-unpacked.apk", outDir)
     }
     stageDone(System.currentTimeMillis() - t5)
 

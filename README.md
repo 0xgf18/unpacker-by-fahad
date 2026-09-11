@@ -377,6 +377,11 @@ bash run.sh app.apk --mode dpt
 bash run.sh app.apk --mode lsparanoid
 bash run.sh app.apk --mode pairip
 
+# fake-360: SignatureKiller repack (has origin.apk) is unpacked statically
+bash run.sh app.apk
+# ... a marker-only fake shell (no origin.apk, no lib/libjiagu.so) is detected
+# as FAKE SHELL ONLY and resolved statically with a clean readable copy.
+
 # ark on a rooted phone via Termux su
 bash run.sh app.apk --mode ark --device local
 

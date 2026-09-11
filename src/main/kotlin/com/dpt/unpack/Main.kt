@@ -310,6 +310,15 @@ private fun runAutoAll(apk: File, outDir: File, debug: Boolean, opts: ArkOptions
         println(uiTop())
         println(uiRow("${ANSI_BOLD_YELLOW}DECOY-ONLY SIGNATURE${ANSI_RESET}"))
         println(uiRow(" ${embedded.name} without any embedded apk"))
+        if (!hasRealArkShell(apk)) {
+            println(uiRow(" ${ANSI_GREEN}FAKE SHELL ONLY${ANSI_RESET} - no real 360 native shell,"))
+            println(uiRow(" no embedded payload -> no runtime encryption to undo statically"))
+            println(uiBot())
+            val finalCopy = File(outDir, apk.name.removeSuffix(".apk") + "-unpacked.apk")
+            apk.copyTo(finalCopy, overwrite = true)
+            println("   clean copy delivered: ${finalCopy.absolutePath}")
+            return
+        }
         println(uiRow(" -> falling through to owned-pipeline routes"))
         println(uiBot())
     }
@@ -370,6 +379,20 @@ private fun findEmbeddedApkEntry(apk: File, hint: String?): String? {
         if (hint != null && names.contains(hint)) return hint
         names.firstOrNull { it.endsWith("origin.apk") }?.let { return it }
         return names.firstOrNull { it.startsWith("assets/") && it.endsWith(".apk") }
+    }
+}
+
+/**
+ * True when the apk ships a real 360 Jiagu native shell (lib/<abi>/libjiagu.so).
+ * A "fake 360" decoy only carries a tiny placeholder (assets/libjiagu_mips.a)
+ * and its own libs, so it is statically readable and must not go to the device
+ * route.
+ */
+private fun hasRealArkShell(apk: File): Boolean {
+    ZipFile(apk).use { z ->
+        return z.entries().asSequence().map { it.name }.any {
+            it.startsWith("lib/") && it.contains("jiagu", ignoreCase = true) && it.endsWith(".so")
+        }
     }
 }
 

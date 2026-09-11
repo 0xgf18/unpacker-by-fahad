@@ -299,7 +299,7 @@ private fun runAutoAll(apk: File, outDir: File, debug: Boolean, opts: ArkOptions
             ZipFile(apk).use { z ->
                 val entry = z.getEntry(embeddedEntry)
                     ?: throw IllegalStateException("embedded entry vanished during read: $embeddedEntry")
-                z.getInputStream(entry).use { it.copyTo(origin.outputStream()) }
+                z.getInputStream(entry).use { i -> origin.outputStream().use { o -> i.copyTo(o) } }
             }
             println("   extracted ${fmtSize(origin.length())} -> ${origin.absolutePath}")
             println("   -> recursing into the embedded origin.apk")
@@ -718,8 +718,13 @@ private fun runLspPipeline(
     stageDone(System.currentTimeMillis() - t2)
 
     // Stage 3 - decode to smali
-    val work = outDir
-    work.deleteRecursively(); work.mkdirs()
+    // If we are unpacking an APK that lives INSIDE the output dir (recursive
+    // embedded repack: outDir/embedded/origin.apk), never wipe outDir - that
+    // would delete the input itself. Decode into a separate .work dir instead.
+    val apkInOut = apk.absoluteFile.absolutePath.startsWith(outDir.absoluteFile.absolutePath + File.separator)
+    val work = if (apkInOut) File(outDir, ".work") else outDir
+    if (work.isDirectory) work.deleteRecursively()
+    work.mkdirs()
     val t3 = System.currentTimeMillis()
     runWithSpinner(3, "Decompiling to smali (apktool d)", 6) {
         ExternalTool.runApktool(apktool, "d", apk.absolutePath, "-o", work.absolutePath, "-f")

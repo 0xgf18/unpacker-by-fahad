@@ -1022,11 +1022,32 @@ private fun resultCard(finalName: String, outDir: File, sha: String, size: Long,
 }
 
 private fun errorCard(msg: String) {
+    System.err.println(msg)
     println(uiTop())
     println(uiRow("${ANSI_RED}F A I L E D${ANSI_RESET}"))
     println(uiRow(""))
-    println(uiRow(cut(msg, 36)))
+    for (raw in msg.lines()) {
+        if (raw.isBlank()) continue
+        for (wrapped in wrapText(raw, 42)) println(uiRow(wrapped))
+    }
     println(uiBot())
+}
+
+/** word-wrap a single line to fit the mobile card width without losing content. */
+private fun wrapText(s: String, width: Int): List<String> {
+    val out = mutableListOf<String>()
+    var cur = StringBuilder()
+    for (w in s.split(" ")) {
+        if (cur.isNotEmpty() && cur.length + 1 + w.length > width) {
+            out.add(cur.toString())
+            cur = StringBuilder(w)
+        } else {
+            if (cur.isNotEmpty()) cur.append(' ')
+            cur.append(w)
+        }
+    }
+    if (cur.isNotEmpty()) out.add(cur.toString())
+    return if (out.isEmpty()) listOf("") else out
 }
 
 private fun stageHead(n: Int, title: String) {

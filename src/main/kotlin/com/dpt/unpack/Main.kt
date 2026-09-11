@@ -392,6 +392,29 @@ private fun defaultOutDir(apk: File): File {
     return File(parent, "$base-unpacked")
 }
 
+/**
+ * Keep the output directory tidy: remove every intermediate generated while
+ * producing the final APK (unsigned/aligned builds, .idsig sidecars, the
+ * throw-away keystore, patched_dex/, and the decoded smali tree), leaving only
+ * the final `-unpacked.apk`. Also removes the `<base>-rebuilt.apk` staged next
+ * to the output dir by the LSParanoid pipeline. Returns the number of items
+ * removed.
+ */
+private fun tidyOutdir(outDir: File, keep: Set<String>): Int {
+    var removed = 0
+    outDir.listFiles()?.forEach { f ->
+        if (f.name in keep) return@forEach
+        val ok = if (f.isDirectory) runCatching { f.deleteRecursively() }.getOrDefault(false) else f.delete()
+        if (ok) removed++
+    }
+    val leftover = keep.firstOrNull()?.removeSuffix("-unpacked.apk")?.plus("-rebuilt.apk")
+    if (leftover != null) {
+        val staged = File(outDir.parentFile ?: outDir, leftover)
+        if (staged.isFile && staged.delete()) removed++
+    }
+    return removed
+}
+
 /** RePairip (PairipProtect deprotection) pipeline: process APK/APKS, then optional translation patch. */
 private fun runPairip(apk: File, outDir: File, debug: Boolean): String {
     val ref = RePairipTool.find()
@@ -599,6 +622,8 @@ private fun runDptPipeline(
     val sha = sha256(finalApk.readBytes())
     stageDone(System.currentTimeMillis() - t5)
 
+    val removed = tidyOutdir(outDir, setOf(finalName))
+    if (removed > 0) println("   ${ANSI_GREEN}✓ cleaned $removed intermediate files${ANSI_RESET}")
     resultCard(finalName, outDir, sha, finalApk.length(), System.currentTimeMillis() - start)
 }
 
@@ -680,6 +705,8 @@ private fun runLspPipeline(
     val finalApk = File(outDir, finalName)
     if (!finalApk.isFile) throw IllegalStateException("output apk missing: ${finalApk.path}")
     val sha = sha256(finalApk.readBytes())
+    val removed = tidyOutdir(outDir, setOf(finalName))
+    if (removed > 0) println("   ${ANSI_GREEN}✓ cleaned $removed intermediate files${ANSI_RESET}")
     resultCard(finalName, outDir, sha, finalApk.length(), System.currentTimeMillis() - start)
 }
 
@@ -820,6 +847,8 @@ private fun runArkPipeline(apk: File, outDir: File, debug: Boolean, opts: ArkOpt
     val finalApk = File(outDir, finalName)
     if (!finalApk.isFile) throw IllegalStateException("output apk missing: ${finalApk.path}")
     val sha = sha256(finalApk.readBytes())
+    val removed = tidyOutdir(outDir, setOf(finalName))
+    if (removed > 0) println("   ${ANSI_GREEN}✓ cleaned $removed intermediate files${ANSI_RESET}")
     resultCard(finalName, outDir, sha, finalApk.length(), System.currentTimeMillis() - start)
 }
 

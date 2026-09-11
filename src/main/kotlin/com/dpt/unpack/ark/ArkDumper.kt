@@ -77,7 +77,11 @@ object ArkDumper {
         }
         return paths.sortedBy { payloadIndex(it) }.map { p ->
             val res = device.rootBytes("cat \"$p\"")
-            if (res.out.isEmpty()) throw IllegalStateException("empty/denied read of $p (need root)")
+            if (res.out.isEmpty()) throw IllegalStateException(
+                "payload decrypts OK but the file is NOT READABLE by this user: $p " +
+                    "(SELinux blocks the shell/Shizuku uid from app-private dirs) - " +
+                    "use root (--root su on a rooted device), or capture a dump for --dump-dir"
+            )
             DumpPayload(p.substringAfterLast('/'), res.out.copyOf())
         }
     }

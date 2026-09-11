@@ -105,6 +105,17 @@ object LsparanoidCrypto {
         return sb.toString()
     }
 
+    /** Short, printable preview of a chunk head for the UI (never terminal garbage). */
+    fun unitsSampleForDisplay(units: List<Int>): String {
+        val sb = StringBuilder()
+        for (raw in units) {
+            val v = raw and 0xFFFF
+            sb.append(if (v == 0x20 || v in 0x21..0x7E) v.toChar().toString() else ".")
+            if (sb.length >= 48) break
+        }
+        return sb.toString().ifEmpty { "(empty)" }
+    }
+
     /** Parse a smali const-string body back into code units (handles \\uXXXX and simple escapes). */
     fun smaliToUnits(text: String): List<Int> {
         val out = mutableListOf<Int>()

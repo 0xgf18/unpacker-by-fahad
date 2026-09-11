@@ -41,7 +41,7 @@ private const val ANSI_RED = "\u001B[31m"
 private const val ANSI_BOLD_YELLOW = "\u001B[1;33m"
 private const val ANSI_RESET = "\u001B[0m"
 
-private val utf8: Boolean = isUtf8Console()
+private val utf8: Boolean = isUtf8Console() && System.getenv("NO_UTF8") == null
 
 private fun isUtf8Console(): Boolean {
     val enc = System.getProperty("native.encoding")
@@ -1061,7 +1061,7 @@ private fun stageHead(n: Int, title: String) {
 
 private fun <T> runWithSpinner(n: Int, title: String, total: Int = 5, block: () -> T): T {
     println()
-    val frames = arrayOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
+    val frames = arrayOf("|", "/", "-", "\\")
     var running = true
     var result: T? = null
     var exception: Exception? = null

@@ -461,7 +461,7 @@ object SmaliDeobfuscator {
                 val n = (v as? List<*>)?.size ?: 0
                 val head = (v as? List<*>)?.firstOrNull()
                 val sample = when (head) {
-                    is List<*> -> LsparanoidCrypto.unitsToSmali(head as List<Int>)
+                    is List<*> -> LsparanoidCrypto.unitsSampleForDisplay(head as List<Int>)
                     else -> ""
                 }
                 "$k  chunks=$n  head: $sample"

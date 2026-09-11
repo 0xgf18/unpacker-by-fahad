@@ -120,9 +120,19 @@ class LocalDevice(private val rootMode: String) : ArkDevice {
         if (useRish) exec("rish", "-c", cmd) else exec("su", "-c", cmd)
 
     override fun installApk(apk: File): CmdResult {
-        val pm = "pm install -r -t -"
-        return if (useRish) exec("rish", "-c", pm, stdin = apk.readBytes())
-        else exec("su", "-c", pm, stdin = apk.readBytes())
+        val pm = "pm install -r -t"
+        return if (useRish) {
+            // rish does not relay our piped stdin to the child, so install
+            // from a temp path that both Termux and the shell uid can reach.
+            val parent = apk.absoluteFile.parentFile ?: File(".")
+            val tmp = File(parent, ".dpt-install-${System.currentTimeMillis()}.apk")
+            tmp.writeBytes(apk.readBytes())
+            try {
+                exec("rish", "-c", "$pm \"${tmp.absolutePath}\"")
+            } finally {
+                tmp.delete()
+            }
+        } else exec("su", "-c", "$pm -", stdin = apk.readBytes())
     }
 
     override fun hint(): String = when (rootMode) {
@@ -183,8 +193,17 @@ internal fun exec(vararg cmd: String, stdin: ByteArray? = null): CmdResult {
     val pb = ProcessBuilder(*cmd)
     pb.redirectErrorStream(true)
     val proc = pb.start()
-    stdin?.let { proc.outputStream.use { s -> s.write(it) } }
-    proc.outputStream.close()
+    if (stdin != null) {
+        try {
+            proc.outputStream.use { s -> s.write(stdin) }
+        } catch (e: java.io.IOException) {
+            proc.destroy()
+            proc.waitFor()
+            return CmdResult(proc.exitValue(), ("stdin write failed (${e.message}) - the tool can't pipe to this backend").encodeToByteArray())
+        }
+    } else {
+        proc.outputStream.close()
+    }
     val out = proc.inputStream.readBytes()
     proc.waitFor()
     return CmdResult(proc.exitValue(), out)

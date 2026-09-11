@@ -149,7 +149,8 @@ Aliases: `auto-all`, `oneshot`, `full`, `single`, or menu choice `5`.
   (or set `DPT_APKTOOL_JAR`)
 - `tools/RePairip.jar` — bundled, required for PairipProtect
 - Ark mode needs a device:
-  - `--device local` — a **rooted** Termux (ran through `su -c`)
+  - `--device local` — on-device Termux. Default `--root auto` uses **Shizuku's
+    `rish`** (no root) when it is installed, otherwise falls back to `su -c`.
   - `--device adb` — host with `adb` binary + USB/network device
   - `--root bluestacks` — Bluestacks whitelist PATH-hijack (no root prompt)
 - Gradle is optional — `run.sh` uses the bundled wrapper if `gradle` is absent
@@ -210,8 +211,8 @@ usage: dpt-unpacker <input.apk> [options]      (first positional = input)
 
 | Option | Meaning |
 | --- | --- |
-| `--device <adb\|local>` | `adb` = host drives device (default); `local` = rooted Termux |
-| `--root <su\|bluestacks>` | root method for adb mode |
+| `--device <adb\|local>` | `adb` = host drives device (default); `local` = on-device Termux |
+| `--root <auto\|su\|shizuku\|bluestacks>` | `auto` (default): local uses `rish` if installed, else `su`; `shizuku` forces `rish -c <cmd>` (adb-uid, **no root**, local only); `bluestacks` is adb-only |
 | `--adb <path>` | path to adb binary (default PATH / `$ANDROID_HOME`) |
 | `--timeout <sec>` | max seconds to wait for payload decrypt (default 120) |
 | `--dump-dir <dir>` | offline: read already-dumped `ark_payload_*.dex` from dir |
@@ -388,6 +389,47 @@ bash run.sh app.apk --mode ark --dump-dir ./dumped --no-install --no-launch
 # output to a custom directory
 bash run.sh app.apk -o ./out
 ```
+
+### Unpack 360 / Ark on a non-rooted phone (Shizuku)
+
+Shizuku runs the server as the **adb (shell)** user, which is enough for Ark
+dumping — the decrypted `ark_payload_*.dex` payloads land in
+`/data/data/<pkg>/code_cache/` after the app starts and are readable by that uid.
+No root required.
+
+1. Install **Shizuku** and start it (`adb` mode via USB/wireless, or root).
+2. **Shizuku app → "Use Shizuku in terminal apps" → Export files** — this
+   exports the `rish` script + `rish_shizuku.dex` to a folder.
+3. In **Termux**: `termux-setup-storage`, then move the two files from the
+   export folder into Termux's private directory (Android 14+ refuses writable
+   dex, so `~/` or `$PREFIX/bin` works, not `/sdcard`) and fix permissions:
+
+   ```bash
+   mv ~/storage/shared/rish/rish* $PREFIX/bin/
+   chmod +x $PREFIX/bin/rish
+   chmod 400 $PREFIX/bin/rish_shizuku.dex   # required on Android 14+
+   export RISH_APPLICATION_ID=com.termux
+   rish -c 'id'                             # sanity check: runs as shell/uid
+   ```
+
+   No Shizuku-side grant is needed for Termux — `rish` runs the command as the
+   server itself.
+4. Run the unpacker:
+
+   ```bash
+   bash run.sh app.apk --mode ark --device local --root shizuku
+   ```
+
+   Or simply `--root auto` (default) — it picks `rish` automatically if it is
+   installed, else falls back to `su`.
+
+Notes:
+
+- Shizuku must be **running** when the dump happens (restart it after a reboot).
+- If the payload read is denied for a specific app, that app's files are not
+  world-readable for that user; root is the only fallback there.
+- `installApk` goes through `pm install`, which the adb user may use; if it
+  fails, install the APK manually and run with `--no-install`.
 
 ---
 

@@ -132,7 +132,7 @@ fun main(args: Array<String>) {
         val chosen = resolveMode(apk, mode)
         val arkOpts = ArkOptions(
             deviceType = deviceType ?: "adb",
-            rootMode = rootMode ?: "su",
+            rootMode = rootMode ?: "auto",
             adbPath = adbPath,
             timeoutSec = timeoutSec?.toIntOrNull() ?: 120,
             dumpDir = dumpDir,
@@ -473,9 +473,11 @@ private fun printUsage() {
     println("   -h, --help              this help")
     println("")
     println(" ark/360 options:")
-    println("   --device <adb|local>    adb = host drives device (default); local = rooted Termux (su)")
-    println("   --root <su|bluestacks>  root method for adb mode (default su; bluestacks uses the")
-    println("                           whitelist PATH-hijack, no root prompt needed)")
+    println("   --device <adb|local>    adb = host drives device (default); local = on-device Termux")
+    println("   --root <auto|su|shizuku|bluestacks>")
+    println("                           auto (default): local uses rish if installed else su;")
+    println("                           adb maps to su. shizuku runs commands via rish (no root,")
+    println("                           works for --device local). bluestacks is adb-only.")
     println("   --adb <path>            path to adb binary (default: PATH / \$ANDROID_HOME)")
     println("   --timeout <sec>         max seconds to wait for payload decrypt (default 120)")
     println("   --dump-dir <dir>        skip device: read already-dumped ark_payload_*.dex from dir")

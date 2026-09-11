@@ -42,7 +42,7 @@ object ArkDumper {
     }
 
     fun device(deviceType: String, rootMode: String, adbPath: String?): ArkDevice = when (deviceType) {
-        "local" -> LocalDevice()
+        "local" -> LocalDevice(rootMode)
         "adb" -> AdbDevice(resolveAdb(adbPath), rootMode)
         else -> throw IllegalStateException("unknown --device '$deviceType' (use adb | local)")
     }
@@ -89,14 +89,52 @@ object ArkDumper {
     }
 }
 
-/** Direct on-device backend for rooted Termux (uses `su` locally). */
-class LocalDevice : ArkDevice {
+/**
+ * Direct on-device backend for Termux. Root modes:
+ *  - "su":      `su -c '<cmd>'` (rooted device / Magisk)
+ *  - "shizuku": `rish -c '<cmd>'` — commands run as the Shizuku server (adb
+ *    user, no root needed). rish must be installed on PATH first.
+ *  - "auto" (default): use rish when present, otherwise fall back to su.
+ */
+class LocalDevice(private val rootMode: String) : ArkDevice {
+
+    private val useRish: Boolean = when (rootMode) {
+        "shizuku" -> when {
+            rishAvailable() -> true
+            else -> throw IllegalStateException(
+                "rish not found on PATH - install it from Shizuku " +
+                    "(\"Use Shizuku in terminal apps\" > Export files), move rish + " +
+                    "rish_shizuku.dex into $${'$'}PREFIX/bin, chmod +x, then retry"
+            )
+        }
+        "auto" -> rishAvailable()
+        else -> false
+    }
+
     override fun shell(cmd: String) = exec("sh", "-c", cmd)
-    override fun root(cmd: String) = exec("su", "-c", cmd)
-    override fun rootBytes(cmd: String) = exec("su", "-c", cmd)
-    override fun installApk(apk: File) =
-        exec("su", "-c", "pm install -r -t -", stdin = apk.readBytes())
-    override fun hint() = "su -c (rooted Termux)"
+
+    override fun root(cmd: String): CmdResult =
+        if (useRish) exec("rish", "-c", cmd) else exec("su", "-c", cmd)
+
+    override fun rootBytes(cmd: String): CmdResult =
+        if (useRish) exec("rish", "-c", cmd) else exec("su", "-c", cmd)
+
+    override fun installApk(apk: File): CmdResult {
+        val pm = "pm install -r -t -"
+        return if (useRish) exec("rish", "-c", pm, stdin = apk.readBytes())
+        else exec("su", "-c", pm, stdin = apk.readBytes())
+    }
+
+    override fun hint(): String = when (rootMode) {
+        "shizuku" -> "rish -c (Shizuku, no root)"
+        "auto" -> if (useRish) "rish -c (auto, Shizuku)" else "su -c (auto, rooted Termux)"
+        else -> "su -c (rooted Termux)"
+    }
+
+    private fun rishAvailable(): Boolean {
+        val path = System.getenv("PATH") ?: return false
+        return path.split(File.pathSeparator).any { File(it, "rish").isFile }
+    }
 }
 
 /**
@@ -106,25 +144,27 @@ class LocalDevice : ArkDevice {
  *    `stop`; a helper script named `stop` is pushed to /data/local/tmp and the
  *    caller PATH forces its execution (execvp honors the caller PATH).
  */
-class AdbDevice(private val adb: File, private val rootMode: String) : ArkDevice {
+class AdbDevice(private val adb: File, rootMode: String) : ArkDevice {
+
+    private val mode = if (rootMode == "auto") "su" else rootMode
 
     override fun shell(cmd: String) = exec(adb.absolutePath, "shell", cmd)
 
-    override fun root(cmd: String): CmdResult = when (rootMode) {
+    override fun root(cmd: String): CmdResult = when (mode) {
         "su" -> exec(adb.absolutePath, "shell", "su -c '$cmd'")
         "bluestacks" -> runBluestacksScript(cmd)
-        else -> throw IllegalStateException("unknown --root '$rootMode' (use su | bluestacks)")
+        else -> throw IllegalStateException("unknown --root '$mode' (use su | bluestacks; shizuku is only for --device local)")
     }
 
-    override fun rootBytes(cmd: String): CmdResult = when (rootMode) {
+    override fun rootBytes(cmd: String): CmdResult = when (mode) {
         "su" -> exec(adb.absolutePath, "shell", "su -c '$cmd'")
         "bluestacks" -> runBluestacksScript(cmd)
-        else -> throw IllegalStateException("unknown --root '$rootMode' (use su | bluestacks)")
+        else -> throw IllegalStateException("unknown --root '$mode' (use su | bluestacks; shizuku is only for --device local)")
     }
 
     override fun installApk(apk: File) = exec(adb.absolutePath, "install", "-r", "-t", apk.absolutePath)
 
-    override fun hint(): String = "adb over ${adb.absolutePath} (root=$rootMode)"
+    override fun hint(): String = "adb over ${adb.absolutePath} (root=$mode)"
 
     private fun runBluestacksScript(cmd: String): CmdResult {
         val tmp = File.createTempFile("dpt_stop", ".sh")

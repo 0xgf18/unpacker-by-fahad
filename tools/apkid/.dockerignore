@@ -1,0 +1,10 @@
+test-data
+research
+
+apkid.egg-info
+venv
+tests
+
+.idea
+.pytest_cache
+.mypy_cache

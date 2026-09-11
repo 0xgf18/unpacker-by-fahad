@@ -1,0 +1,36 @@
+# precompiled rules included in dist but not source
+apkid/rules/rules.yarc
+apkid/rules/trackers.yarc
+
+# APKs and DEX files for local testing
+test-data
+research
+
+.Python
+pyvenv.cfg
+venv/
+ENV/
+env/
+.venv
+.python-version
+
+.idea/
+*.sln.iml
+.vscode/
+
+__pycache__/
+.mypy_cache
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+.Python
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+*.egg
+
+*.DS_Store

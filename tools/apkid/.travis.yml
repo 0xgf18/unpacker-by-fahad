@@ -1,0 +1,16 @@
+language: python
+dist: focal
+cache:
+  pip: true
+#  directories:
+#    - $HOME/.cache/samples
+python:
+  - "3.9"
+install:
+  - pip install --upgrade pip wheel setuptools
+  - pip install -e .[dev,test]
+  - pip install --upgrade pytest factory_boy
+script:
+  - ./prep-release.py | true
+  - python -m pytest -s
+  - docker build . -t rednaga:apkid

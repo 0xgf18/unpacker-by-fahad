@@ -156,7 +156,7 @@ Aliases: `auto-all`, `oneshot`, `full`, `single`, or menu choice `5`.
 - Gradle is optional — `run.sh` uses the bundled wrapper if `gradle` is absent
 
 ---
-
+Youtube Video https://youtu.be/EQvlHzHL-t8?si=JLDmbGmbvRuJCA0A
 ## Install on Termux
 
 ```bash

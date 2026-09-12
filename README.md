@@ -162,9 +162,11 @@ Aliases: `auto-all`, `oneshot`, `full`, `single`, or menu choice `5`.
 ```bash
 pkg install openjdk-17 unzip
 termux-setup-storage            # allow /sdcard access
-unzip fahad-unpacker-termux.zip    # extract the bundle
-cd fahad-unpacker
-bash run.sh app.apk             # fully automatic
+git clone https://github.com/0xgf18/unpacker-by-fahad DPT-UNPACKER
+cd DPT-UNPACKER
+ls -la
+
+chmod +x run.sh && ./run.sh
 ```
 
 First run builds the tool via Gradle (`installDist`) automatically; afterwards
